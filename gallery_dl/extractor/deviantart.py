@@ -878,8 +878,8 @@ class DeviantartWatchExtractor(DeviantartExtractor):
     """Extractor for Deviations from watched users"""
     subcategory = "watch"
     directory_fmt = ("{category}", "{author[username]}")
-    pattern = r"(?:https?://)?(?:www\.)?deviantart\.com/notifications(/)watch/"
-    test = ("https://www.deviantart.com/notifications/watch/",)
+    pattern = r"(?:https?://)?(?:www\.)?deviantart\.com/watch(/)deviations"
+    test = ("https://www.deviantart.com/watch/deviations",)
 
     def deviations(self):
         return self.api.browse_deviantsyouwatch()
@@ -932,7 +932,7 @@ class DeviantartOAuthAPI():
     def browse_deviantsyouwatch(self, offset=0):
         """Yield deviations from users you watch"""
         endpoint = "browse/deviantsyouwatch"
-        params = {"limit": "50", "offset": offset}
+        params = {"limit": "50", "offset": offset, "mature_content": self.mature}
         return self._pagination(endpoint, params, public=False)
 
     def browse_popular(self, query=None, timerange=None, offset=0):
