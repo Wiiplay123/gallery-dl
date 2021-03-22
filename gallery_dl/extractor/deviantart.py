@@ -367,6 +367,26 @@ class DeviantartUserExtractor(DeviantartExtractor):
 ###############################################################################
 # OAuth #######################################################################
 
+class DeviantartWatchExtractor(DeviantartExtractor):
+    """Extractor for Deviations from watched users"""
+    subcategory = "watch"
+    directory_fmt = ("{category}", "{author[username]}")
+    pattern = r"(?:https?://)?(?:www\.)?deviantart\.com/watch(/)deviations"
+    test = ("https://www.deviantart.com/watch/deviations",)
+
+    def deviations(self):
+        return self.api.browse_deviantsyouwatch()
+
+class DeviantartWatchPostsExtractor(DeviantartExtractor):
+    """Extractor for Deviations from watched users"""
+    subcategory = "watchposts"
+    directory_fmt = ("{category}", "{author[username]}")
+    pattern = r"(?:https?://)?(?:www\.)?deviantart\.com/watch(/)posts"
+    test = ("https://www.deviantart.com/watch/posts",)
+
+    def deviations(self):
+        return self.api.browse_posts_deviantsyouwatch()
+
 class DeviantartGalleryExtractor(DeviantartExtractor):
     """Extractor for all deviations from an artist's gallery"""
     subcategory = "gallery"
@@ -873,18 +893,6 @@ class DeviantartFollowingExtractor(DeviantartExtractor):
             user["_extractor"] = DeviantartUserExtractor
             yield Message.Queue, url, user
 
-
-class DeviantartWatchExtractor(DeviantartExtractor):
-    """Extractor for Deviations from watched users"""
-    subcategory = "watch"
-    directory_fmt = ("{category}", "{author[username]}")
-    pattern = r"(?:https?://)?(?:www\.)?deviantart\.com/watch(/)deviations"
-    test = ("https://www.deviantart.com/watch/deviations",)
-
-    def deviations(self):
-        return self.api.browse_deviantsyouwatch()
-
-
 ###############################################################################
 # API Interfaces ##############################################################
 
@@ -934,6 +942,12 @@ class DeviantartOAuthAPI():
         endpoint = "browse/deviantsyouwatch"
         params = {"limit": "50", "offset": offset, "mature_content": self.mature}
         return self._pagination(endpoint, params, public=False)
+        
+    def browse_posts_deviantsyouwatch(self, offset=0):
+        """Yield deviations from users you watch"""
+        endpoint = "browse/posts/deviantsyouwatch"
+        params = {"limit": "50", "offset": offset, "mature_content": self.mature}
+
 
     def browse_popular(self, query=None, timerange=None, offset=0):
         """Yield popular deviations"""
@@ -1119,6 +1133,42 @@ class DeviantartOAuthAPI():
                 if self.folders:
                     self._folders(data["results"])
             yield from data["results"]
+
+            if not data["has_more"]:
+                return
+            params["offset"] = data["next_offset"]
+
+        warn = True
+        while True:
+            data = self._call(endpoint, params, public=public)
+            if "results" not in data:
+                self.log.error("Unexpected API response: %s", data)
+                return
+            
+			# Unlike normal deviation lists, the results don't directly contain the info.
+			# They contain an extra entry called either "journal" or "status" with the stuff inside.
+            paginationItems = [] # There's probably a much better way to do this
+            for paginationItem in data["results"]:
+                if "journal" in paginationItem:
+                    paginationItems.append(paginationItem['journal'])
+				# TODO: Add status ripping
+            if extend:
+                if public and len(data["results"]) < params["limit"]:
+                    if self.refresh_token_key:
+                        self.log.debug("Switching to private access token")
+                        public = False
+                        continue
+                    elif data["has_more"] and warn:
+                        warn = False
+                        self.log.warning(
+                            "Private deviations detected! Run 'gallery-dl "
+                            "oauth:deviantart' and follow the instructions to "
+                            "be able to access them.")
+                if self.metadata:
+                    self._metadata(paginationItems)
+                if self.folders:
+                    self._folders(paginationItems)
+            yield from paginationItems
 
             if not data["has_more"]:
                 return
