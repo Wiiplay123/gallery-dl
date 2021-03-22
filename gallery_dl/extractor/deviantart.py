@@ -947,6 +947,7 @@ class DeviantartOAuthAPI():
         """Yield deviations from users you watch"""
         endpoint = "browse/posts/deviantsyouwatch"
         params = {"limit": "50", "offset": offset, "mature_content": self.mature}
+        return self._paginationWatchPosts(endpoint, params, public=False)
 
 
     def browse_popular(self, query=None, timerange=None, offset=0):
@@ -1138,6 +1139,7 @@ class DeviantartOAuthAPI():
                 return
             params["offset"] = data["next_offset"]
 
+    def _paginationWatchPosts(self, endpoint, params, extend=True, public=True):
         warn = True
         while True:
             data = self._call(endpoint, params, public=public)
