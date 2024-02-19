@@ -174,6 +174,10 @@ class Job():
             self.update_kwdict(msg[1])
             self.handle_directory(msg[1])
 
+        elif msg[0] == Message.Metadata:
+            self.update_kwdict(msg[1])
+            self.handle_metadata(msg[1])
+
         elif msg[0] == Message.Queue:
             _, url, kwdict = msg
             if self.metadata_url:
@@ -186,6 +190,9 @@ class Job():
 
     def handle_directory(self, kwdict):
         """Handle Message.Directory"""
+        
+    def handle_metadata(self, kwdict):
+        """Handle Message.Metadata"""
 
     def handle_queue(self, url, kwdict):
         """Handle Message.Queue"""
@@ -351,6 +358,24 @@ class DownloadJob(Job):
         if "post" in self.hooks:
             for callback in self.hooks["post"]:
                 callback(self.pathfmt)
+                
+    def handle_metadata(self, kwdict):
+        """Trigger metadata saving without altering target directory"""
+        if not self.pathfmt:
+            self.initialize(kwdict)
+        else:
+            if "post-after" in self.hooks:
+                for callback in self.hooks["post-after"]:
+                    callback(self.pathfmt)
+            #self.pathfmt.set_directory(kwdict)
+            kwdict["extension"] = None
+            self.pathfmt.set_filename(kwdict)
+            self.pathfmt.build_path()
+        # run post processors
+        if "post" in self.hooks:
+            for callback in self.hooks["post"]:
+                callback(self.pathfmt)
+            
 
     def handle_queue(self, url, kwdict):
         if url in self.visited:
