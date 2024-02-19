@@ -43,6 +43,9 @@ class Message():
     - Message.Urllist:  # obsolete
       - Same as Message.Url, but its 2nd element is a list of multiple URLs
       - The additional URLs serve as a fallback if the primary one fails
+      
+    - Message.Metadata:
+      - Saves metadata like Message.Directory without actually updating the directory.
     """
 
     Version = 1
@@ -52,4 +55,4 @@ class Message():
     #  Cookies = 5
     Queue = 6
     #  Urllist = 7
-    #  Metadata = 8
+    Metadata = 8
