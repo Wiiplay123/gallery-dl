@@ -32,13 +32,16 @@ class VscoExtractor(Extractor):
         yield Message.Directory, {"user": self.user}
         for img in self.images():
 
-            if not img or "responsive_url" not in img:
+            if not img or "responsive_url" not in img and "video_url" not in img:
                 continue
 
             if img["is_video"]:
                 if not videos:
                     continue
-                url = "https://" + img["video_url"]
+                url = img["video_url"]
+                if not url.startswith("https://"):
+                    url = "https://" + url
+                    
             else:
                 base = img["responsive_url"].partition("/")[2]
                 cdn, _, path = base.partition("/")
@@ -52,7 +55,7 @@ class VscoExtractor(Extractor):
             data = text.nameext_from_url(url, {
                 "id"    : img["_id"],
                 "user"  : self.user,
-                "grid"  : img["grid_name"],
+                "grid"  : img.get("grid_name") or {},
                 "meta"  : img.get("image_meta") or {},
                 "tags"  : [tag["text"] for tag in img.get("tags") or ()],
                 "date"  : text.parse_timestamp(img["upload_date"] // 1000),
@@ -61,6 +64,9 @@ class VscoExtractor(Extractor):
                 "height": img["height"],
                 "description": img.get("description") or "",
             })
+            if text.ext_from_url(url) == "m3u8":
+                url = "ytdl:" + url
+                data["extension"] = "mp4"
             yield Message.Url, url, data
 
     def images(self):
@@ -109,6 +115,16 @@ class VscoExtractor(Extractor):
         media["responsive_url"] = media["responsiveUrl"]
         media["video_url"] = media.get("videoUrl")
         media["image_meta"] = media.get("imageMeta")
+        return media
+        
+    @staticmethod
+    def _transform_video(media):
+        if "playbackUrl" not in media:
+            return None
+        media["_id"] = media["id"]
+        media["is_video"] = True
+        media["upload_date"] = media["createdDate"]
+        media["video_url"] = media["playbackUrl"]
         return media
 
 
@@ -253,3 +269,19 @@ class VscoImageExtractor(VscoExtractor):
         data = self._extract_preload_state(url)
         media = data["medias"]["byId"].popitem()[1]["media"]
         return (self._transform_media(media),)
+        
+class VscoVideoExtractor(VscoExtractor):
+    """Extractor for individual videos on vsco.co"""
+    subcategory = "video"
+    pattern = USER_PATTERN + r"/video/([0-9a-fA-F\-]+)"
+    example = "https://vsco.co/USER/video/01234567-89ab-cdef-0123-456789abcdef"
+
+    def __init__(self, match):
+        VscoExtractor.__init__(self, match)
+        self.media_id = match.group(2)
+
+    def images(self):
+        url = "{}/{}/video/{}".format(self.root, self.user, self.media_id)
+        data = self._extract_preload_state(url)
+        media = data["medias"]["byId"].popitem()[1]["media"]
+        return (self._transform_video(media),)
