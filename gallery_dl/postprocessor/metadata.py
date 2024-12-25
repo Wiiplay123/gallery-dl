@@ -19,6 +19,7 @@ class MetadataPP(PostProcessor):
 
     def __init__(self, job, options):
         PostProcessor.__init__(self, job)
+        self.job = job
 
         mode = options.get("mode")
         cfmt = options.get("content-format") or options.get("format")
@@ -138,6 +139,10 @@ class MetadataPP(PostProcessor):
             mtime = pathfmt.kwdict.get("_mtime")
             if mtime:
                 util.set_mtime(path, mtime)
+        
+        if "metadata" in self.job.hooks:
+                for callback in self.job.hooks["metadata"]:
+                    callback(self.job.pathfmt)
 
     def _run_stdout(self, pathfmt):
         self.write(sys.stdout, pathfmt.kwdict)

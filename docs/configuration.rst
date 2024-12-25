@@ -6339,6 +6339,9 @@ Description
         e.g. a Tweet on Twitter or a post on Patreon.
     ``post-after``
         After downloading all files of a `post`
+	``metadata``
+		After successfully downloading metadata,
+		but not when metadata is skipped
 
 
 metadata.include
