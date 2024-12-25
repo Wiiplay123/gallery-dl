@@ -11,7 +11,6 @@
 from .common import BaseExtractor, Message
 from .. import text
 
-
 class VichanExtractor(BaseExtractor):
     """Base class for vichan extractors"""
     basecategory = "vichan"
@@ -56,6 +55,7 @@ class VichanThreadExtractor(VichanExtractor):
             "title" : text.unescape(title)[:50],
             "num"   : 0,
         }
+        self.text_posts = self.config("text-posts", False)
 
         yield Message.Directory, data
         for post in posts:
@@ -65,6 +65,8 @@ class VichanThreadExtractor(VichanExtractor):
                     for post["num"], filedata in enumerate(
                             post["extra_files"], 1):
                         yield process(post, filedata)
+            elif "com" in post and self.text_posts:
+                yield Message.Metadata, post
 
     def _process(self, post, data):
         post.update(data)
